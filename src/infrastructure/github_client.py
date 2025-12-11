@@ -1,5 +1,6 @@
 import asyncio
 from typing import List, Optional, AsyncGenerator
+from datetime import datetime, timezone
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import aiohttp
@@ -262,7 +263,7 @@ class GitHubClient:
                                     id=repo_data['id'],
                                     full_name=repo_data['full_name'],
                                     star_count=repo_data['stargazers_count'],
-                                    last_crawled_at=asyncio.get_event_loop().time()
+                                    last_crawled_at=datetime.now(timezone.utc)
                                 )
                                 repositories.append(repo)
                             except Exception as e:
