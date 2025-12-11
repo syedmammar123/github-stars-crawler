@@ -57,7 +57,7 @@ jobs:
           DB_NAME: github_crawler
           DB_USER: postgres
           DB_PASSWORD: postgres
-          REPOS_TO_CRAWL: 100000
+          REPOS_TO_CRAWL: 1000
         run: |
           python -m src.main
       
