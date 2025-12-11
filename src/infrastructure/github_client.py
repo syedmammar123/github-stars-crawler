@@ -2,6 +2,7 @@ import asyncio
 from typing import List, Optional, AsyncGenerator
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
+import aiohttp
 from src.config import Config
 from src.domain.repository import Repository
 from src.infrastructure.rate_limiter import RateLimiter
@@ -173,6 +174,116 @@ class GitHubClient:
                 break
         
         print(f"🎉 Search complete! Total repositories fetched: {total_fetched}")
+    
+    async def search_repositories_rest(
+        self,
+        query: str = "stars:>0",
+        max_repos: Optional[int] = None
+    ) -> AsyncGenerator[List[Repository], None]:
+        """
+        Search for repositories using REST API (no 1K per-page limit like GraphQL).
+        Supports better pagination for larger result sets.
+        
+        Args:
+            query: GitHub search query
+            max_repos: Maximum number of repositories to fetch
+        
+        Yields:
+            Lists of Repository objects in batches
+        """
+        page = 1
+        total_fetched = 0
+        batch_size = 100
+        
+        print(f"🔍 Starting REST API search: '{query}'")
+        print(f"📊 Target: {max_repos if max_repos else 'unlimited'} repositories")
+        print(f"📦 Batch size: {batch_size}\n")
+        
+        async with aiohttp.ClientSession() as session:
+            while True:
+                # Stop if we've reached the limit
+                if max_repos and total_fetched >= max_repos:
+                    break
+                
+                # Adjust batch size for last fetch
+                if max_repos:
+                    remaining = max_repos - total_fetched
+                    current_batch_size = min(batch_size, remaining)
+                else:
+                    current_batch_size = batch_size
+                
+                try:
+                    # REST API endpoint
+                    url = "https://api.github.com/search/repositories"
+                    params = {
+                        'q': query,
+                        'sort': 'stars',
+                        'order': 'desc',
+                        'per_page': current_batch_size,
+                        'page': page
+                    }
+                    
+                    headers = {
+                        'Authorization': f'Bearer {self.config.github_token}',
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                    
+                    # Wait if rate limit is low
+                    await self.rate_limiter.wait_if_needed()
+                    
+                    async with session.get(url, params=params, headers=headers) as response:
+                        if response.status == 422:
+                            print("✅ Reached end of search results (no more pages)")
+                            break
+                        
+                        if response.status != 200:
+                            print(f"❌ API error: {response.status}")
+                            break
+                        
+                        data = await response.json()
+                        
+                        # Update rate limit from response headers
+                        if 'X-RateLimit-Remaining' in response.headers:
+                            remaining = int(response.headers['X-RateLimit-Remaining'])
+                            limit = int(response.headers['X-RateLimit-Limit'])
+                            print(f"   Rate limit: {remaining}/{limit}")
+                        
+                        repos = data.get('items', [])
+                        
+                        if not repos:
+                            print("✅ No more repositories found")
+                            break
+                        
+                        # Convert to domain objects
+                        repositories = []
+                        for repo_data in repos:
+                            try:
+                                repo = Repository(
+                                    id=repo_data['id'],
+                                    full_name=repo_data['full_name'],
+                                    star_count=repo_data['stargazers_count'],
+                                    last_crawled_at=asyncio.get_event_loop().time()
+                                )
+                                repositories.append(repo)
+                            except Exception as e:
+                                print(f"⚠️  Failed to parse repo: {e}")
+                                continue
+                        
+                        total_fetched += len(repositories)
+                        
+                        # Yield batch
+                        if repositories:
+                            print(f"✅ Fetched page {page}: {len(repositories)} repos "
+                                  f"(total: {total_fetched:,})")
+                            yield repositories
+                        
+                        page += 1
+                        
+                except Exception as e:
+                    print(f"❌ Error fetching repositories: {e}")
+                    break
+        
+        print(f"🎉 Search complete! Total repositories fetched: {total_fetched:,}\n")
     
     async def get_rate_limit_status(self) -> dict:
         """

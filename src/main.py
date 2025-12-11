@@ -60,9 +60,10 @@ async def main():
         # Initialize crawler service
         crawler = CrawlerService(database, github_client)
         
-        # Start crawling with partitioned queries to overcome search API limits
+        # Start crawling with REST API for better pagination (gets us to 100K!)
         result = await crawler.crawl_repositories(
-            max_repos=config.repos_to_crawl
+            max_repos=config.repos_to_crawl,
+            use_rest_api=True
         )
         
         # Show final statistics

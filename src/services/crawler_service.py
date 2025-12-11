@@ -24,15 +24,17 @@ class CrawlerService:
     async def crawl_repositories(
         self,
         queries: list = None,
-        max_repos: int = 100_000
+        max_repos: int = 100_000,
+        use_rest_api: bool = True
     ) -> dict:
         """
         Crawl GitHub repositories and save them to the database.
-        Supports multiple partitioned queries to overcome search API limits.
+        Uses REST API by default for better pagination (no 1K limit).
         
         Args:
-            queries: List of GitHub search queries (default: star ranges)
+            queries: List of GitHub search queries (for GraphQL mode)
             max_repos: Maximum number of repositories to crawl across all queries
+            use_rest_api: Use REST API (True) or GraphQL (False)
         
         Returns:
             Dictionary with crawl statistics
@@ -44,7 +46,7 @@ class CrawlerService:
         print(f"🚀 Starting GitHub Repository Crawler")
         print("="*60)
         print(f"📊 Target: {max_repos:,} repositories")
-        print(f"🔍 Queries: {len(queries)} partitions")
+        print(f"🔍 API: {'REST (better pagination)' if use_rest_api else 'GraphQL'}")
         print(f"🗄️  Database: Ready")
         print("="*60 + "\n")
         
@@ -52,21 +54,40 @@ class CrawlerService:
         print(f"📈 Repositories in database before crawl: {start_count:,}\n")
         
         try:
-            repos_per_query = max_repos // len(queries)
-            
-            for idx, query in enumerate(queries, 1):
-                print(f"\n📍 Query {idx}/{len(queries)}: {query}")
-                print(f"   Target: {repos_per_query:,} repos\n")
+            if use_rest_api:
+                # REST API - single query, better pagination
+                print(f"📍 Using REST API search: 'stars:>0'")
+                print(f"   Target: {max_repos:,} repos\n")
                 
-                # Stream repositories in batches and save them
-                async for batch in self.github_client.search_repositories(
-                    query=query,
-                    max_repos=repos_per_query
+                async for batch in self.github_client.search_repositories_rest(
+                    query="stars:>0",
+                    max_repos=max_repos
                 ):
-                    # Save batch to database
                     rows_affected = await self.database.upsert_repositories(batch)
                     self.total_saved += len(batch)
                     self.total_batches += 1
+                    
+                    print(f"💾 Batch #{self.total_batches}: {len(batch)} repos "
+                          f"({rows_affected} rows affected) - "
+                          f"Total: {self.total_saved:,}/{max_repos:,} "
+                          f"({100*self.total_saved//max_repos}% complete)")
+                    
+                    await asyncio.sleep(0.05)
+            else:
+                # GraphQL - partitioned queries
+                repos_per_query = max_repos // len(queries)
+                
+                for idx, query in enumerate(queries, 1):
+                    print(f"\n📍 Query {idx}/{len(queries)}: {query}")
+                    print(f"   Target: {repos_per_query:,} repos\n")
+                    
+                    async for batch in self.github_client.search_repositories(
+                        query=query,
+                        max_repos=repos_per_query
+                    ):
+                        rows_affected = await self.database.upsert_repositories(batch)
+                        self.total_saved += len(batch)
+                        self.total_batches += 1
                 
                 print(f"💾 Saved batch #{self.total_batches}: "
                       f"{len(batch)} repos ({rows_affected} rows affected) - "
