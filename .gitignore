@@ -5,3 +5,4 @@ venv/
 *.csv
 *.json
 .DS_Store
+SUBMISSION_CHECKLIST.md
