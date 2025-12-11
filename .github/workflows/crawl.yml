@@ -72,21 +72,21 @@ jobs:
           python export_data.py
       
       - name: 📤 Upload CSV artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: github-stars-csv
           path: repositories.csv
           retention-days: 30
       
       - name: 📤 Upload JSON artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: github-stars-json
           path: repositories.json
           retention-days: 30
       
       - name: 📤 Upload summary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: crawl-summary
           path: summary.txt
