@@ -23,24 +23,28 @@ class CrawlerService:
     
     async def crawl_repositories(
         self,
-        query: str = "stars:>1",
+        queries: list = None,
         max_repos: int = 100_000
     ) -> dict:
         """
         Crawl GitHub repositories and save them to the database.
+        Supports multiple partitioned queries to overcome search API limits.
         
         Args:
-            query: GitHub search query
-            max_repos: Maximum number of repositories to crawl
+            queries: List of GitHub search queries (default: star ranges)
+            max_repos: Maximum number of repositories to crawl across all queries
         
         Returns:
             Dictionary with crawl statistics
         """
+        if queries is None:
+            queries = self._get_default_queries()
+        
         print("\n" + "="*60)
         print(f"🚀 Starting GitHub Repository Crawler")
         print("="*60)
         print(f"📊 Target: {max_repos:,} repositories")
-        print(f"🔍 Query: {query}")
+        print(f"🔍 Queries: {len(queries)} partitions")
         print(f"🗄️  Database: Ready")
         print("="*60 + "\n")
         
@@ -48,15 +52,21 @@ class CrawlerService:
         print(f"📈 Repositories in database before crawl: {start_count:,}\n")
         
         try:
-            # Stream repositories in batches and save them
-            async for batch in self.github_client.search_repositories(
-                query=query,
-                max_repos=max_repos
-            ):
-                # Save batch to database
-                rows_affected = await self.database.upsert_repositories(batch)
-                self.total_saved += len(batch)
-                self.total_batches += 1
+            repos_per_query = max_repos // len(queries)
+            
+            for idx, query in enumerate(queries, 1):
+                print(f"\n📍 Query {idx}/{len(queries)}: {query}")
+                print(f"   Target: {repos_per_query:,} repos\n")
+                
+                # Stream repositories in batches and save them
+                async for batch in self.github_client.search_repositories(
+                    query=query,
+                    max_repos=repos_per_query
+                ):
+                    # Save batch to database
+                    rows_affected = await self.database.upsert_repositories(batch)
+                    self.total_saved += len(batch)
+                    self.total_batches += 1
                 
                 print(f"💾 Saved batch #{self.total_batches}: "
                       f"{len(batch)} repos ({rows_affected} rows affected) - "
@@ -93,6 +103,22 @@ class CrawlerService:
                 'total_crawled': self.total_saved,
                 'total_batches': self.total_batches
             }
+    
+    def _get_default_queries(self) -> list:
+        """
+        Get default partitioned queries by star count ranges.
+        Overcomes GitHub search API limit (~1000 results per query).
+        """
+        return [
+            "stars:0..100",
+            "stars:101..500",
+            "stars:501..1000",
+            "stars:1001..5000",
+            "stars:5001..10000",
+            "stars:10001..50000",
+            "stars:50001..100000",
+            "stars:>100000"
+        ]
     
     async def get_statistics(self) -> dict:
         """Get current database statistics."""

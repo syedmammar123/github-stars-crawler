@@ -60,9 +60,8 @@ async def main():
         # Initialize crawler service
         crawler = CrawlerService(database, github_client)
         
-        # Start crawling
+        # Start crawling with partitioned queries to overcome search API limits
         result = await crawler.crawl_repositories(
-            query="stars:>1",  # All repos with at least 1 star
             max_repos=config.repos_to_crawl
         )
         
