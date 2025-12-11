@@ -1,6 +1,6 @@
 import aiosqlite
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 from src.infrastructure.database import RepositoryDatabase
 from src.domain.repository import Repository
 
@@ -79,7 +79,7 @@ class SQLiteRepository(RepositoryDatabase):
                 repo.id,
                 repo.full_name,
                 repo.star_count,
-                repo.last_crawled_at.isoformat() if repo.last_crawled_at else datetime.now().isoformat()
+                repo.last_crawled_at.isoformat() if repo.last_crawled_at else datetime.now(timezone.utc).isoformat()
             ))
             rows_affected += cursor.rowcount
         

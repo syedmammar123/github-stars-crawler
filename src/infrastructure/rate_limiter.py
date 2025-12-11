@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from dataclasses import dataclass
 
@@ -19,7 +19,7 @@ class RateLimit:
     @property
     def seconds_until_reset(self) -> float:
         """Calculate seconds until rate limit resets."""
-        delta = self.reset_at - datetime.now()
+        delta = self.reset_at - datetime.now(timezone.utc)
         return max(0, delta.total_seconds())
 
 

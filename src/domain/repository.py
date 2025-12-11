@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 @dataclass(frozen=True)  # frozen=True makes it immutable!
@@ -34,7 +34,7 @@ class Repository:
             id=int(github_id),
             full_name=data['nameWithOwner'],
             star_count=data['stargazerCount'],
-            last_crawled_at=datetime.now()
+            last_crawled_at=datetime.now(timezone.utc)
         )
     
     def to_dict(self) -> dict:
