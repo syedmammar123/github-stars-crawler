@@ -63,7 +63,6 @@ async def main():
         # Start crawling with REST API for better pagination (gets us to 100K!)
         result = await crawler.crawl_repositories(
             max_repos=config.repos_to_crawl,
-            use_rest_api=True
         )
         
         # Show final statistics
