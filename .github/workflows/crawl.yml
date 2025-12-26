@@ -1,100 +1,100 @@
-name: GitHub Stars Crawler
+# name: GitHub Stars Crawler
 
-on:
-  workflow_dispatch:  # Manual trigger
-  schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+# on:
+#   workflow_dispatch:  # Manual trigger
+#   schedule:
+#     - cron: '0 2 * * *'  # Daily at 2 AM UTC
 
-jobs:
-  crawl:
-    runs-on: ubuntu-latest
+# jobs:
+#   crawl:
+#     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: github_crawler
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+#     services:
+#       postgres:
+#         image: postgres:15
+#         env:
+#           POSTGRES_PASSWORD: postgres
+#           POSTGRES_DB: github_crawler
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 5432:5432
     
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+#     steps:
+#       - name: 📥 Checkout code
+#         uses: actions/checkout@v4
       
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+#       - name: 🐍 Setup Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
       
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+#       - name: 📦 Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install -r requirements.txt
       
-      - name: 🗄️ Setup PostgreSQL database
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: github_crawler
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-        run: |
-          python setup_postgres.py
+#       - name: 🗄️ Setup PostgreSQL database
+#         env:
+#           DB_HOST: localhost
+#           DB_PORT: 5432
+#           DB_NAME: github_crawler
+#           DB_USER: postgres
+#           DB_PASSWORD: postgres
+#         run: |
+#           python setup_postgres.py
       
-      - name: ⭐ Crawl GitHub stars
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DB_TYPE: postgres
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: github_crawler
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          REPOS_TO_CRAWL: 100000
-        run: |
-          python -m src.main
+#       - name: ⭐ Crawl GitHub stars
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           DB_TYPE: postgres
+#           DB_HOST: localhost
+#           DB_PORT: 5432
+#           DB_NAME: github_crawler
+#           DB_USER: postgres
+#           DB_PASSWORD: postgres
+#           REPOS_TO_CRAWL: 100000
+#         run: |
+#           python -m src.main
       
-      - name: 📊 Export database contents
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: github_crawler
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-        run: |
-          python export_data.py
+#       - name: 📊 Export database contents
+#         env:
+#           DB_HOST: localhost
+#           DB_PORT: 5432
+#           DB_NAME: github_crawler
+#           DB_USER: postgres
+#           DB_PASSWORD: postgres
+#         run: |
+#           python export_data.py
       
-      - name: 📤 Upload CSV artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-stars-csv
-          path: repositories.csv
-          retention-days: 30
+#       - name: 📤 Upload CSV artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: github-stars-csv
+#           path: repositories.csv
+#           retention-days: 30
       
-      - name: 📤 Upload JSON artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-stars-json
-          path: repositories.json
-          retention-days: 30
+#       - name: 📤 Upload JSON artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: github-stars-json
+#           path: repositories.json
+#           retention-days: 30
       
-      - name: 📤 Upload summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: crawl-summary
-          path: summary.txt
-          retention-days: 30
+#       - name: 📤 Upload summary
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: crawl-summary
+#           path: summary.txt
+#           retention-days: 30
       
-      - name: ✅ Display summary
-        run: |
-          echo "==================================="
-          echo "Crawl Complete!"
-          echo "==================================="
-          cat summary.txt
+#       - name: ✅ Display summary
+#         run: |
+#           echo "==================================="
+#           echo "Crawl Complete!"
+#           echo "==================================="
+#           cat summary.txt
